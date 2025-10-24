@@ -1,0 +1,19 @@
+function [outputArg1,outputArg2] = matching_chart(N,MTOW,c_flap,delta_flap,)
+% input
+BFL=2100; %[m]
+gamma=8; % angolo di salita [°]
+rho=1.225; % rho_SL, perchè?
+CL_max=2.70; % single-slotted flap and slat
+Vs=115; % dipende dal CL_max [kn]
+
+% Function for climbs conditon
+T2W_climb=@(Cd0,Cd0_gear,Cd0_flap,W2S,rho,V,kOEI,k,gamma)...
+    1/(kOEI*W2S)*(0.5*rho*v^2*(Cd0+Cd0_flap+Cd0_gear))+...
+    1/(kOEI*0.5*rho*V^2)+k*W2S*cos(gamma)^2+...
+    1/(kOEI)*sin(gamma);
+
+%% Climb with OEI
+Vs=Vs*0.514;
+V2=Vs*2;
+kOEI=(N-1)/N;
+end
