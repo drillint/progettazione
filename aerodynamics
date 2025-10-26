@@ -1,0 +1,4 @@
+function [] = aerodynamics(W2S,MTOW,AR,lambda,Lambda,t2c,) 
+    % input
+
+end
