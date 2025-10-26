@@ -1,19 +1,27 @@
 clc; close all; clear;
 %% Input Data
 % design variables
-W2S=[400]';
+W2S=[400]'; % [kg/m^2]
 M=[0.76]';
 t2c=[0.10]';
 AR=[7 8 9 10 11]'; % aspect ratio
 lambda=[0.25 0.3]'; % taper ratio
-Gamma=deg2rad([20 25 30 35])'; % sweep angle
+Lambda=deg2rad([20 25 30 35])'; % sweep angle
 N=2; % number of engines
+
 delta_flap=deg2rad(25);
 c_flap2c=0.2;
-MTOW=73.5*10^3*9.81; % [Kgf]
-% airport, ISA relations are used
-airport_altitude=0;
-airport_rho=1.225;
-airport_temperature=0;
-airport_pressure=0;
-[Cd0_gear, Cd0_flap]=matching_chart(N,MTOW,c_flap2c,delta_flap,airport_rho);
+CL_max=2.70; % single-slotted flap and slat
+MTOW0=73.5*10^3; % [Kg]
+
+% airport Parameters
+altitude_airport=0;
+rho_airport=1.225;
+T_airport=288.15;
+p_airport=101325;
+
+% cruise condition
+altitude_cruise=10000; % [m]
+
+%% Functions recall
+[Cd0_gear, Cd0_flap]=matching_chart(N,MTOW0,c_flap2c,delta_flap,rho_airport, M,altitude_cruise,T_airport,CL_max);
