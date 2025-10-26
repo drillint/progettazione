@@ -1,42 +1,58 @@
-function [Cd0_gear, Cd0_flap] = matching_chart(N,MTOW,c_flap2c,delta_flap,airport_rho)
-% input
-W2S=(100:25:800)';
+function [Cd0_gear, Cd0_flap] = matching_chart(N,MTOW,c_flap2c,delta_flap,rho_airport,M,altitude_cruise,T_airport,CL_max)
+%% costants
+rho0=1.225; T0=288.15; g=9.81;
+gamma = 1.4; R = 287; % [J/(kg*K)]
+L = 0.0065;  % Gradiente termico [K/m] fino a 11 km
+if altitude_cruise <= 11000 % troposfera
+    T_cruise = T_airport - L*altitude_cruise; 
+    rho_cruise = rho0 * (T_cruise/T0)^(g/(R*L) - 1);
+else % stratosfera bassa(oltre non è previsto che voli un aereo di questa tipologia)
+    T_cruise = T_airport - L*11000;
+    p_cruise = p0*(T_cruise/T0)^(g/(R*L));                % pressione base stratosfera
+    rho_cruise = (p_cruise/(R*T_cruise)) .* exp((-g*(altitude_airport)-11000)/(R*T_cruise));
+end
+c_cruise = sqrt(gamma * R * T_cruise);  % [m/s]
+V_cruise=M*c_cruise;
+
+%% input
+W2S=(100:10:800)'; % W2S è fissato ad ogni iterazione, questo vettore serve a costruire la mappa
 S=MTOW./W2S;
 S_flap=S.*0.8;
 BFL=2100; %[m]
-CL_max=2.70; % single-slotted flap and slat
-Vs=115*0.514; % dipende dal CL_max [kn]-> [m/s]
+% Vs=(2 * MTOW./S*g./ (rho_airport * CL_max)).^(1/2); % [m/s]
+Vs=120*0.514;
 V2=Vs*1.2;
 k=0.04; 
-rho0=1.225; rho_cruise=0.7;V_cruise=800/3.6;
 Cd0=0.02;
+
 % Function for climbs conditon
 T2W_climb=@(Cd0,Cd0_gear,Cd0_flap,rho,V,kOEI,k,gamma)...
-    1./(kOEI.*W2S).*(0.5*rho*V^2*(Cd0+Cd0_flap+Cd0_gear))+...
-    1./(kOEI*0.5*rho*V^2)*k.*W2S*cos(gamma)^2+...
+    1./(kOEI.*W2S*g).*(0.5*rho.*V.^2.*(Cd0+Cd0_flap+Cd0_gear))+...
+    1./(kOEI*0.5*rho.*V.^2).*k.*W2S*g*cos(gamma)^2+...
     1/(kOEI)*sin(gamma);
 
 %% Climb with OEI
 kOEI=(N-1)/N;
-Cd0_gear=4.05*10^(-3).*(MTOW)^0.785./(S);
+Cd0_gear=4.05*10^(-3).*(MTOW*2.2)^0.785./(S*3.28^2); % MTOW in [lbs], S in [ft^2]
 Cd0_flap=0.9*(c_flap2c)^1.38.*(S_flap./S)*sin(delta_flap)^2;
 %1°segmento, gear e flap on, V2
-T2W_OEI1=T2W_climb(Cd0,Cd0_gear,Cd0_flap,airport_rho,V2,kOEI,k,0);
+T2W_OEI1=T2W_climb(Cd0,Cd0_gear,Cd0_flap,rho_airport,V2,kOEI,k,0);
 %2°segmento, gear off e flap on, V2
-T2W_OEI2=T2W_climb(Cd0,0,Cd0_flap,airport_rho,V2,kOEI,k,atan(0.024));
+T2W_OEI2=T2W_climb(Cd0,0,Cd0_flap,rho_airport,V2,kOEI,k,atan(0.024));
 %3°segmento, gear off, flap off, 2Vs
-T2W_OEI3=T2W_climb(Cd0,0,0,airport_rho,2*Vs,kOEI,k,atan(0.012));
+T2W_OEI3=T2W_climb(Cd0,0,0,rho_airport,2.*Vs,kOEI,k,atan(0.012));
 % è il primo segmento ad essere dimensionante, volendo si possono plottare
 % i 3 per confronto
 %% Approach climb
-T2W_approach_climb=T2W_climb(Cd0,0,Cd0_flap,airport_rho,1.3*Vs,kOEI,k,atan(0.021));
+T2W_approach_climb=T2W_climb(Cd0,0,Cd0_flap,rho_airport,1.3.*Vs,kOEI,k,atan(0.021));
 %% Landing climb
-T2W_landing_climb=T2W_climb(Cd0,Cd0_gear,Cd0_flap,airport_rho,Vs*1.17,1,k,atan(0.032));
+T2W_landing_climb=T2W_climb(Cd0,Cd0_gear,Cd0_flap,rho_airport,Vs.*1.17,1,k,atan(0.032));
 figure;
 %% Cruise
-T2W_cruise=rho0/rho_cruise*(0.5*rho_cruise*V_cruise^2*Cd0./W2S+k*W2S/(0.5*rho_cruise*V_cruise^2));
+T2W_cruise=rho0/rho_cruise*(0.5*rho_cruise*V_cruise^2*Cd0./(W2S*g)+k*W2S*g/(0.5*rho_cruise*V_cruise^2));
 %% Landing
-W2S_lim=0.5*airport_rho*Vs^2*CL_max;
+W2S_lim=0.5*rho_airport*Vs.^2*CL_max/g; % [kg/m^2]
+
 %% Plot
 plot(W2S, T2W_OEI1, 'LineWidth', 1.5); hold on;
 plot(W2S, T2W_approach_climb, 'LineWidth', 1.5); hold on;
@@ -44,9 +60,27 @@ plot(W2S, T2W_landing_climb, 'LineWidth', 1.5); hold on;
 plot(W2S, T2W_cruise, 'LineWidth', 1.5); hold on;
 xline(W2S_lim, 'LineWidth', 1.5);
 grid on;
+ylim([0,0.6]);
 xlabel('W/S [N/m^2]');
 ylabel('T/W ');
 title('Matching Chart-Climb with OEI');
 legend('1° segmento climb with OEI','approach climb','landing climb','cruise' ,'landing','Location', 'northeast');
+
+T2W_min = max([T2W_OEI1, T2W_approach_climb, T2W_landing_climb, T2W_cruise], [], 2);
+
+if W2S_lim > min(W2S) && W2S_lim < max(W2S)
+    T2W_lim = interp1(W2S, T2W_min, W2S_lim);
+else
+    T2W_lim = T2W_min(end);
+end
+
+x_fill = [W2S(1); W2S(W2S <= W2S_lim); W2S_lim; W2S_lim; W2S(1)];
+y_fill = [0.6; T2W_min(W2S <= W2S_lim); T2W_lim; 0.6; 0.6];
+
+hold on
+fill(x_fill, y_fill, [0.6 0.8 1], ...
+    'FaceAlpha', 0.3, ...
+    'EdgeColor', 'none', ...
+    'DisplayName', 'Design space');
 
 end
