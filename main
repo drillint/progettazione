@@ -1,16 +1,19 @@
 clc; close all; clear;
 %% Input Data
 % design variables
-W2S=[500 550 600 650 700]';
-M=[0.76 0.78 0.80 0.82]';
-t2c=[0.10 0.14]';
+W2S=[400]';
+M=[0.76]';
+t2c=[0.10]';
 AR=[7 8 9 10 11]'; % aspect ratio
 lambda=[0.25 0.3]'; % taper ratio
 Gamma=deg2rad([20 25 30 35])'; % sweep angle
 N=2; % number of engines
-
+delta_flap=deg2rad(25);
+c_flap2c=0.2;
+MTOW=73.5*10^3*9.81; % [Kgf]
 % airport, ISA relations are used
-airport_altitude=
-airport_rho=
-airport_temperature=
-airport_pressure=
+airport_altitude=0;
+airport_rho=1.225;
+airport_temperature=0;
+airport_pressure=0;
+[Cd0_gear, Cd0_flap]=matching_chart(N,MTOW,c_flap2c,delta_flap,airport_rho);
