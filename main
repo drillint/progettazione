@@ -1,17 +1,20 @@
 clc; close all; clear;
 %% Input Data: parameters are changed one at a time
 % design variables
-W2S=[400]'; % [kg/m^2]
-M=[0.76]';
+W2S=[600]'; % [kg/m^2]
+M_cruise=[0.76]';
 t2c=[0.10]';
-AR=[7]'; % aspect ratio
+AR=[10]'; % aspect ratio
 taper_ratio=[0.25]'; % taper ratio
-sweep_angle=deg2rad([20 25 30 35])'; % sweep angle
+sweep_angle=deg2rad([20])'; % sweep angle
 N=2; % number of engines
-CL_design=1.4; % CL considering as design point 25% of cruise distance, evaluating W_design
-delta_flap=deg2rad(25);
-c_flap2c=0.2;
-CL_max=2.70; % single-slotted flap and slat
+
+% requirments
+N_pass=148;
+range=5.89*10^6; % [m]
+
+
+CL_design=0.3; % CL considering as design point 25% of cruise distance, evaluating W_design
 MTOW0=73.5*10^3; % [Kg]
 
 % airport Parameters
@@ -24,5 +27,12 @@ p_airport=101325;
 altitude_cruise=10000; % [m]
 
 %% Functions recall
-[Cd0_gear, Cd0_flap]=matching_chart(N,MTOW0,c_flap2c,delta_flap,rho_airport, M,altitude_cruise,T_airport,CL_max);
-[e,M_crit,Cd_wave,S,Cd_i,b] = aerodynamics(M,W2S,MTOW0,AR,taper_ratio,sweep_angle,t2c,CL_design);
+% MTOW0=Raymer_weight_evaluation(N_pass);
+
+[V_cruise,T2W] = ...
+    matching_chart(N,MTOW0,W2S,sweep_angle,rho_airport, M_cruise,altitude_cruise,T_airport);
+
+[Cd0_tot,Cd0_wing,Cd0_horizontal,Cd0_vertical,Cd0_fusolage,Cd0_nacelle,e,M_crit,Cd_wave,S,Cd_i,b] = ...
+    aerodynamics(M_cruise,W2S,MTOW0,T2W,AR,taper_ratio,sweep_angle,t2c,CL_design,V_cruise,N);
+
+[M_wing] = weights(AR,MTOW0,taper_ratio,W2S,t2c,sweep_angle);
