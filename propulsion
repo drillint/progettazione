@@ -1,0 +1,76 @@
+function [V_cruise,T2W,T2W_TO] = matching_chart(N,MTOW,W2S,sweep_angle,rho_airport,M,altitude_cruise,T_airport)
+%% costants
+rho0=1.225; T0=288.15; g=9.81;
+gamma = 1.4; R = 287; % [J/(kg*K)]
+L = 0.0065;  % Gradiente termico [K/m] fino a 11 km
+if altitude_cruise <= 11000 % troposfera
+    T_cruise = T_airport - L*altitude_cruise; 
+    rho_cruise = rho0 * (T_cruise/T0)^(g/(R*L) - 1);
+else % stratosfera bassa(oltre non è previsto che voli un aereo di questa tipologia)
+    T_cruise = T_airport - L*11000;
+    p_cruise = p0*(T_cruise/T0)^(g/(R*L));                % pressione base stratosfera
+    rho_cruise = (p_cruise/(R*T_cruise)) .* exp((-g*(altitude_airport)-11000)/(R*T_cruise));
+end
+c_cruise = sqrt(gamma * R * T_cruise);  % [m/s]
+V_cruise=M*c_cruise;
+
+%% input
+c_flap2c=0.2;
+delta_flap=deg2rad(25)';
+BFL=2100; %[m] -> to interpolate and compute TOP (Take-Off parameter)
+% Vs=(2 * MTOW./S*g./ (rho_airport * CL_max)).^(1/2); % [m/s]
+Vs=120*0.514;
+V2=Vs*1.2;
+k=0.04; % will be computed in aerodynamics block
+Cd0=0.02; % Cd0 is computed at the first iteration
+
+% aerodynamic datas
+S=MTOW./W2S;
+S_flap=S.*0.8;
+
+%% Take-off
+sigma=rho_airport/rho0;
+% graphically computed(BFL=6888 ft) TOP=160 if N=2, 190 if N=4 [lb/ft^2]
+if N==2
+    TOP=160*4.88;
+else 
+    TOP=190*4.88;
+end
+CL_max=2.7; % clear wing
+delta_CL_max_flap_2D=1.25; % single-slotted flap and slat
+delta_CL_max_flap_3D=0.92*delta_CL_max_flap_2D*0.8.*cos(sweep_angle); % 3D effect
+CL_max_TO=CL_max+delta_CL_max_flap_3D;
+T2W_TO=W2S./(sigma*CL_max_TO*TOP);
+
+%% Function for climbs conditon
+T2W_climb=@(Cd0,Cd0_gear,Cd0_flap,rho,V,kOEI,k,gamma)...
+    1./(kOEI.*W2S*g).*(0.5*rho.*V.^2.*(Cd0+Cd0_flap+Cd0_gear))+...
+    1./(kOEI*0.5*rho.*V.^2).*k.*W2S*g*cos(gamma)^2+...
+    1/(kOEI)*sin(gamma);
+
+%% Climb with OEI
+kOEI=(N-1)/N;
+Cd0_gear=4.05*10^(-3).*(MTOW*2.2)^0.785./(S*3.28^2); % MTOW in [lbs], S in [ft^2]
+Cd0_flap=0.9*(c_flap2c)^1.38.*(S_flap./S)*sin(delta_flap)^2;
+%1°segmento, gear e flap on, V2
+T2W_OEI1=T2W_climb(Cd0,Cd0_gear,Cd0_flap,rho_airport,V2,kOEI,k,0);
+%2°segmento, gear off e flap on, V2
+T2W_OEI2=T2W_climb(Cd0,0,Cd0_flap,rho_airport,V2,kOEI,k,atan(0.024));
+%3°segmento, gear off, flap off, 2Vs
+T2W_OEI3=T2W_climb(Cd0,0,0,rho_airport,2.*Vs,kOEI,k,atan(0.012));
+% è il primo segmento ad essere dimensionante, volendo si possono plottare
+% i 3 per confronto
+%% Approach climb
+T2W_approach_climb=T2W_climb(Cd0,0,Cd0_flap,rho_airport,1.3.*Vs,kOEI,k,atan(0.021));
+%% Landing climb
+T2W_landing_climb=T2W_climb(Cd0,Cd0_gear,Cd0_flap,rho_airport,Vs.*1.17,1,k,atan(0.032));
+%% Cruise
+T2W_cruise=rho0/rho_cruise*(0.5*rho_cruise*V_cruise^2*Cd0./(W2S*g)+k*W2S*g/(0.5*rho_cruise*V_cruise^2));
+%% Landing
+W2S_lim=0.5*rho_airport*Vs.^2*CL_max/g; % [kg/m^2]
+if W2S > W2S_lim
+    print('wing load over landing limits')
+end
+T2W=max([T2W_TO,T2W_OEI3,T2W_approach_climb,T2W_landing_climb,T2W_cruise]);
+
+end
