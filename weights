@@ -1,0 +1,33 @@
+function [W_wing] = weights(AR,MTOW,taper_ratio,W2S,t2c,sweep_angle)
+%% input
+S_tail_horizontal2S=0.32; % according to aerodynamics
+S_tail_vertical2S=0.27; % according to aerodynamics
+S_whole_tail2S=S_tail_horizontal2S+S_tail_vertical2S;
+
+%% Structural mass
+% Wing
+S=MTOW./W2S;
+% formula in english units
+Iw=@(AR,MTOW,taper_ratio,W2S,t2c,sweep_angle,W_fuel) 3.75*AR.^1.5.*((MTOW-W_fuel)./MTOW).^0.5...
+    .*(1+2.*taper_ratio).*W2S.*S.^1.5*10.^-6./(t2c.*cos(sweep_angle).^2.*(1+taper_ratio));
+% Wing load variations, according to aircraft category, always produce
+% S>900 ft^2
+W_wing=0.93*Iw(AR,MTOW*2.2,taper_ratio,W2S*0.2045,t2c,sweep_angle,20000*2.2)+6.44.*S.*2.2+390;
+W_wing=W_wing/2.2; % nota: wfuel sarà calcolata dalla stima iniziale di Raymer
+
+% Tail
+W_tail=5.03*S_whole_tail2S.*S; % conventional tail is used
+
+% Fuselage
+W_fuselage=1.35*
+
+% Landing gear
+
+
+%% Propulsion
+
+%% Systems
+
+%% Operating
+
+end
