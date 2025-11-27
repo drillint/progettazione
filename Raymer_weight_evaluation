@@ -1,3 +1,33 @@
-function [MTOW] = Raymer_weight_evaluation(N_pass)
+function [W_TO_star,Wfuel2WTO,W_payload,W_cargo] = Raymer_weight_evaluation(N_pass,range)
+%% input
+N_pilots=2; % per short-medium range
+N_container=5;
+deltax=200*1.852e3; % diversione in metri(da miglia nautiche)
+deltat=0.5; % waiting time in ore
+TSFC=0.4; % [1/h] di un turbofan high BPR
+V_cruise=225*3600; % [m/h]
+V_div=225*3600; % [m/h]circa quella di crociera
+E=18;
+c=-0.06;
+A=0.97;
+%% crew
+n_fa=ceil(N_pass/50);
+W_fa=155/2.2 * n_fa;
+W_pilots=225/2.2 * N_pilots;
+W_crew=W_fa+W_pilots;
+%% payload
+W_cargo=N_container*160*4.16; % peso bagagli in stiva
+W_payload=(79.4+13.6)*N_pass+W_cargo; % passeggeri + bagaglio a mano
+%% fuel
+Wfuel2WTO=1.05*( (1-0.97*0.985*exp(-TSFC*range/(V_cruise*E))*0.995) + ( 0.97*0.985*exp(-TSFC*range/(V_cruise*E))*0.995 ) * ( 1-1*exp(-TSFC*deltax/(V_div*E))*1*exp(-TSFC*deltat/E)) );
+%% OEW
+W_TO=0; W_TO_star=70e3;
+while norm(W_TO_star-W_TO) > 100
+    W_TO=W_TO_star;
+    W_fuel=Wfuel2WTO*W_TO;
+    Wempty2WTO=A*W_TO^c;
+    W_empty=Wempty2WTO*W_TO;
+    W_TO_star=W_payload+W_crew+W_fuel+W_empty;
+end
 
 end
