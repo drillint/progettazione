@@ -1,38 +1,88 @@
 clc; close all; clear;
-%% Input Data: parameters are changed one at a time
+%% Input:
 % design variables
-W2S=[600]'; % [kg/m^2]
-M_cruise=[0.76]';
-t2c=[0.10]';
-AR=[10]'; % aspect ratio
-taper_ratio=[0.25]'; % taper ratio
-sweep_angle=deg2rad([20])'; % sweep angle
-N=2; % number of engines
+N_vec=[2,4]; % numero di motori
+W2S_vec=[650,700]; % [kg/m^2]
+M_cruise_vec=[0.75]; % Mach di crociera
+t2c_vec=[0.1]; % spessore dell'ala
+AR_vec=[12]; % aspect ratio
+taper_ratio_vec=[0.3]; % taper ratio
+sweep_angle_vec=deg2rad([35]); % sweep angle
 
 % requirments
 N_pass=148;
-range=5.89*10^6; % [m]
+range=5.89e6; % [m]
 
-
-CL_design=0.3; % CL considering as design point 25% of cruise distance, evaluating W_design
-MTOW0=73.5*10^3; % [Kg]
-
-% airport Parameters
+% condizioni aeroportuali(aeroporto a sea level)
 altitude_airport=0;
 rho_airport=1.225;
 T_airport=288.15;
 p_airport=101325;
 
-% cruise condition
-altitude_cruise=10000; % [m]
+% quota di design
+altitude_cruise=11000; % [m]
 
-%% Functions recall
-% MTOW0=Raymer_weight_evaluation(N_pass);
+%% Preparazione pre-loop
+numit=0;
+% stima iniziale e pesi alla Raymer
+[MTOW0,Wfuel2WTO,W_payload,W_cargo]= ...
+    Raymer_weight_evaluation(N_pass,range);
 
-[V_cruise,T2W] = ...
-    matching_chart(N,MTOW0,W2S,sweep_angle,rho_airport, M_cruise,altitude_cruise,T_airport);
+% fusoliera
+[df,Lf,N_container] = ...
+    fuselage(N_pass);
 
-[Cd0_tot,Cd0_wing,Cd0_horizontal,Cd0_vertical,Cd0_fusolage,Cd0_nacelle,e,M_crit,Cd_wave,S,Cd_i,b] = ...
-    aerodynamics(M_cruise,W2S,MTOW0,T2W,AR,taper_ratio,sweep_angle,t2c,CL_design,V_cruise,N);
+%% Loop alla Raymer, per tutte le possibili configurazioni di design variables
+for N = N_vec
+    for W2S = W2S_vec
+        for M_cruise = M_cruise_vec
+            for t2c = t2c_vec
+                for AR = AR_vec
+                    for taper_ratio = taper_ratio_vec
+                        for sweep_angle = sweep_angle_vec
+                            % input(condizioni iniziali) per il loop 
+                            k=0.04; Cd0=0.02;
+                            MTOW=MTOW0; MTOW_gap=1000;
+                            while abs(MTOW_gap) > 100
+                                W_fuel=Wfuel2WTO*MTOW;
+                                % propulsione
+                                [rho_cruise,V_cruise,T2W] = ...
+                                    matching_chart(N,MTOW,W2S,sweep_angle,rho_airport, M_cruise,altitude_cruise,T_airport,k,Cd0);
 
-[M_wing] = weights(AR,MTOW0,taper_ratio,W2S,t2c,sweep_angle);
+                                % CL_design, tra gli input dell'aerodinamica
+                                W25=MTOW-0.25*W_fuel;
+                                CL_design= 2*W2S/MTOW*W25*9.81/(rho_cruise*V_cruise^2);
+
+                                % aerodinamica
+                                [Cd0_star,e,M_crit,Cd_wave,S,Cd_i,b,E,k_star] = ...
+                                    aerodynamics(M_cruise,W2S,MTOW,T2W,AR,taper_ratio,sweep_angle,t2c,CL_design,V_cruise,N,df,Lf);
+
+                                % pesi
+                                [OEW,W_wing] = ...
+                                    weights(N_pass,range,M_cruise,AR,MTOW,taper_ratio,W2S,t2c,sweep_angle,T2W,N,df,Lf,b,W_fuel);
+                                MTOW_star=OEW+W_payload+W_cargo+W_fuel;
+
+                                % calcolo il delta prima di aggiornare MTOW
+                                MTOW_gap=MTOW_star-MTOW;
+
+                                % i valori * rappresentano
+                                % l'aggiornamento della variabile per il
+                                % ciclo successivo. Per il blocco
+                                % propulsivo serve un po' di aerodinamica
+                                % (k, Cd0), che prendo dalla condizione di 
+                                % input e poi dall'iterazione precedente
+                                k=k_star;
+                                Cd0=Cd0_star;
+
+                                % aggiorno il peso
+                                MTOW=MTOW_star;
+
+                                numit=numit+1;
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
