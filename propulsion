@@ -1,4 +1,4 @@
-function [V_cruise,T2W,T2W_TO] = matching_chart(N,MTOW,W2S,sweep_angle,rho_airport,M,altitude_cruise,T_airport)
+function [rho_cruise,V_cruise,T2W,T2W_TO] = matching_chart(N,MTOW,W2S,sweep_angle,rho_airport,M,altitude_cruise,T_airport,k,Cd0)
 %% costants
 rho0=1.225; T0=288.15; g=9.81;
 gamma = 1.4; R = 287; % [J/(kg*K)]
@@ -19,10 +19,8 @@ c_flap2c=0.2;
 delta_flap=deg2rad(25)';
 BFL=2100; %[m] -> to interpolate and compute TOP (Take-Off parameter)
 % Vs=(2 * MTOW./S*g./ (rho_airport * CL_max)).^(1/2); % [m/s]
-Vs=120*0.514;
+Vs=115*0.514;
 V2=Vs*1.2;
-k=0.04; % will be computed in aerodynamics block
-Cd0=0.02; % Cd0 is computed at the first iteration
 
 % aerodynamic datas
 S=MTOW./W2S;
@@ -36,10 +34,10 @@ if N==2
 else 
     TOP=190*4.88;
 end
-CL_max=2.7; % clear wing
-delta_CL_max_flap_2D=1.25; % single-slotted flap and slat
-delta_CL_max_flap_3D=0.92*delta_CL_max_flap_2D*0.8.*cos(sweep_angle); % 3D effect
-CL_max_TO=CL_max+delta_CL_max_flap_3D;
+CL_max=2.7; % clean wing
+delta_CL_max_flap_slat_2D=1.25; % single-slotted flap and slat
+delta_CL_max_flap_slat_3D=0.92*delta_CL_max_flap_slat_2D*0.8.*cos(sweep_angle); % 3D effect
+CL_max_TO=CL_max+delta_CL_max_flap_slat_3D;
 T2W_TO=W2S./(sigma*CL_max_TO*TOP);
 
 %% Function for climbs conditon
@@ -67,7 +65,7 @@ T2W_landing_climb=T2W_climb(Cd0,Cd0_gear,Cd0_flap,rho_airport,Vs.*1.17,1,k,atan(
 %% Cruise
 T2W_cruise=rho0/rho_cruise*(0.5*rho_cruise*V_cruise^2*Cd0./(W2S*g)+k*W2S*g/(0.5*rho_cruise*V_cruise^2));
 %% Landing
-W2S_lim=0.5*rho_airport*Vs.^2*CL_max/g; % [kg/m^2]
+W2S_lim=0.5*rho_airport*Vs.^2*CL_max_TO/g; % [kg/m^2], si usa il Cl_max_TO, ovvero già calcolato con gli ipersostentatori
 if W2S > W2S_lim
     print('wing load over landing limits')
 end
