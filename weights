@@ -1,33 +1,96 @@
-function [W_wing] = weights(AR,MTOW,taper_ratio,W2S,t2c,sweep_angle)
+function [OEW,W_wing] = weights(N_pass,range,M,AR,MTOW,taper_ratio,W2S,t2c,sweep_angle,T2W,N,df,Lf,b,W_fuel)
 %% input
 S_tail_horizontal2S=0.32; % according to aerodynamics
 S_tail_vertical2S=0.27; % according to aerodynamics
 S_whole_tail2S=S_tail_horizontal2S+S_tail_vertical2S;
 
+G=W_fuel*0.33; % galloni di fuel a bordo
+N_tank=5; % numero di tank
+N_pilots=2; % per short-medium range
 %% Structural mass
 % Wing
-S=MTOW./W2S;
-% formula in english units
-Iw=@(AR,MTOW,taper_ratio,W2S,t2c,sweep_angle,W_fuel) 3.75*AR.^1.5.*((MTOW-W_fuel)./MTOW).^0.5...
-    .*(1+2.*taper_ratio).*W2S.*S.^1.5*10.^-6./(t2c.*cos(sweep_angle).^2.*(1+taper_ratio));
-% Wing load variations, according to aircraft category, always produce
-% S>900 ft^2
-W_wing=0.93*Iw(AR,MTOW*2.2,taper_ratio,W2S*0.2045,t2c,sweep_angle,20000*2.2)+6.44.*S.*2.2+390;
-W_wing=W_wing/2.2; % nota: wfuel sarà calcolata dalla stima iniziale di Raymer
+S=MTOW/W2S;
+% formula per il geometry index, unità anglosassoni
+Iw=@(AR,MTOW,taper_ratio,W2S,S,t2c,sweep_angle,W_fuel) ...
+    3.75*AR^1.5*((MTOW-W_fuel)/MTOW)^0.5*(1+2*taper_ratio)*W2S*...
+    S^1.5*10^(-6)/(t2c*cos(sweep_angle)^2*(1+taper_ratio));
+% S>900 ft^2 considerando la categoria di velivolo
+W_wing=0.93*Iw(AR,MTOW*2.2,taper_ratio,W2S*2.2/3.28^2,S*3.28^2,t2c,sweep_angle,W_fuel*2.2)+6.44*S*3.28^2+390;
+W_wing=W_wing/2.2;
 
 % Tail
-W_tail=5.03*S_whole_tail2S.*S; % conventional tail is used
+W_tail=5.03*S_whole_tail2S*S*(3.28^2) / 2.2; % conventional tail is used
 
 % Fuselage
-W_fuselage=1.35*
+W_fuselage=1.35*(Lf*df*3.28^2)^1.28 / 2.2;
 
 % Landing gear
+W_lg=0.044*MTOW*2.2-672;
+W_lg_struct=W_lg*(0.45+23.1*10^(-8)*MTOW*2.2);
+W_lg_brakes=W_lg*(0.268-8.12*10^(-8)*MTOW*2.2);
+W_lg_tires=W_lg*(0.152-8.38*10^(-8)*MTOW*2.2);
+W_lg_controls=W_lg*(0.130-6.56*10^(-8)*MTOW*2.2);
+W_lg_group=(W_lg_struct+W_lg_brakes+W_lg_tires+W_lg_controls)/2.2;
 
-
+W_structural=W_wing+W_tail+W_fuselage+W_lg_group;
 %% Propulsion
+% nacelle
+T=T2W*MTOW*2.2/N;
+W_nac=1/4*N*0.04*0.07*T^1.36 / 2.2;
 
+% engine
+W_eng=T2W*MTOW/5.5;
+
+W_propulsion=W_nac+W_eng;
 %% Systems
+% fuel
+W_fuel_sys=2.71*(b*3.28/cos(sweep_angle)*N_tank)^0.956 / 2.2;
+
+% hydraulic
+if S*3.28^2+1.44*S_whole_tail2S*S*3.28^2 <= 3000
+    W_hyd_sys=(45+1.318*(S*3.28^2+1.44*S_whole_tail2S*S*3.28^2)) /2.2;
+else
+    W_hyd_sys=(18.7*(S*3.28^2+1.44*S_whole_tail2S*S*3.28^2)^0.712-1620) / 2.2;
+end
+
+% electric
+W_elec_sys=(16.2*N_pass+110) / 2.2;
+
+% pneumatic, a/c, API
+W_pne_ac_apu=26.2*N_pass.^0.944 / 2.2;
+
+% anti-icing (coda inclusa)
+W_anti_ice=0.238*S*3.28^2 / 2.2;
+
+% instruments
+W_thrustinstr=(0.00145*T+30)*N/2.2;
+W_fuelinstr=(0.00714*G+34)/2.2;
+W_otherinstr=(1.872*N_pass+128)/2.2;
+W_instr=W_thrustinstr+W_fuelinstr+W_otherinstr;
+
+% avionics
+W_avio=(2.8*N_pass+2320) /2.2;
+
+% engine
+W_eng_sys=133*N / 2.2;
+
+W_system=W_fuel_sys+W_hyd_sys+W_elec_sys+W_pne_ac_apu+W_anti_ice+W_instr+W_avio+W_eng_sys;
 
 %% Operating
+% furnishings
+W_furn=(118.4*N_pass-4190)/2.2;
 
+% services, classe unica (tourist),range espresso in miglia nautiche
+W_serv=2.529*N_pass*(range/(10^3*1.852)/M)^0.225 / 2.2;
+
+% crew and attendants
+n_fa=ceil(N_pass/50);
+W_fa=155/2.2 * n_fa;
+W_pilots=225/2.2 * N_pilots;
+W_crew=W_fa+W_pilots;
+
+W_operating=W_furn+W_serv+W_crew;
+
+%% Operative empty weight
+OEW=W_structural+W_propulsion+W_system+W_operating;
 end
