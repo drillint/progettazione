@@ -1,3 +1,23 @@
-function [] = fuselage()
+function [df,Lf_opt,N_container] = fuselage(N_pass)
 %% input
-L 
+seat_width=0.48; %[m]
+aise_width=0.43;
+N_seat_inline=6;
+
+Wc=seat_width*N_seat_inline+aise_width+0.2; % 20 cm di margine
+Wf_max=Wc/0.93; 
+
+% cargo
+N_container=ceil(N_pass*0.113/4.16);
+hf=1.35*1.17; % altezza al di sotto del pavimento, 117 cm di container e 35% di alloggio
+
+hf_max=hf/0.38;
+
+df=max(hf_max,Wf_max); % diametro massimo
+
+% calcolo di L dalla minimizzazione di Cd0 della fusoliera
+f_to_min=@(L)( 1+60/(L/ sqrt(4*pi*((hf_max+Wf_max)/2)^2*pi))^3 + (L/ sqrt(4*pi*((hf_max+Wf_max)/2)^2*pi))/400) * (0.9*L*Wf_max+0.85*L*hf_max);
+
+Lf_opt=fminbnd(f_to_min,7*df,9*df); % cerco in un range da 7 a 9 slenderness ratio (Lf/df)
+
+end
