@@ -1,13 +1,13 @@
 clc; close all; clear;
 %% Input:
 % design variables
-N_vec=[2,4]; % numero di motori
-W2S_vec=[650,700]; % [kg/m^2]
-M_cruise_vec=[0.75]; % Mach di crociera
+N_vec=[2]; % numero di motori
+W2S_vec=[650]; % [kg/m^2]
+M_cruise_vec=[0.82]; % Mach di crociera
 t2c_vec=[0.1]; % spessore dell'ala
 AR_vec=[12]; % aspect ratio
 taper_ratio_vec=[0.3]; % taper ratio
-sweep_angle_vec=deg2rad([35]); % sweep angle
+sweep_angle_vec=deg2rad([25]); % sweep angle
 
 % requirments
 N_pass=148;
@@ -41,12 +41,12 @@ for N = N_vec
                     for taper_ratio = taper_ratio_vec
                         for sweep_angle = sweep_angle_vec
                             % input(condizioni iniziali) per il loop 
-                            k=0.04; Cd0=0.02;
+                            k=0.04; Cd0=0.025;
                             MTOW=MTOW0; MTOW_gap=1000;
                             while abs(MTOW_gap) > 100
                                 W_fuel=Wfuel2WTO*MTOW;
                                 % propulsione
-                                [rho_cruise,V_cruise,T2W] = ...
+                                [rho_cruise,V_cruise,T2W,W2S_lim] = ...
                                     matching_chart(N,MTOW,W2S,sweep_angle,rho_airport, M_cruise,altitude_cruise,T_airport,k,Cd0);
 
                                 % CL_design, tra gli input dell'aerodinamica
@@ -54,8 +54,9 @@ for N = N_vec
                                 CL_design= 2*W2S/MTOW*W25*9.81/(rho_cruise*V_cruise^2);
 
                                 % aerodinamica
-                                [Cd0_star,e,M_crit,Cd_wave,S,Cd_i,b,E,k_star] = ...
+                                [Cd0_star,e,M_crit,Cd_wave,S,S_wet_wing,Cd_i,b,E,k_star] = ...
                                     aerodynamics(M_cruise,W2S,MTOW,T2W,AR,taper_ratio,sweep_angle,t2c,CL_design,V_cruise,N,df,Lf);
+                                    Cd=Cd0+Cd_i+Cd_wave;
 
                                 % pesi
                                 [OEW,W_wing] = ...
