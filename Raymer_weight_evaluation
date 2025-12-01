@@ -16,8 +16,8 @@ W_fa=155/2.2 * n_fa;
 W_pilots=225/2.2 * N_pilots;
 W_crew=W_fa+W_pilots;
 %% payload
-W_cargo=N_container*160*4.16; % peso bagagli in stiva
-W_payload=(79.4+13.6)*N_pass+W_cargo; % passeggeri + bagaglio a mano
+W_cargo=N_container*160*4.16; % peso bagagli in stiva, volume dei container per densità fornita
+W_payload=(79.4+13.6)*N_pass+W_cargo; % passeggeri + bagaglio a mano + bagagli in stiva
 %% fuel
 Wfuel2WTO=1.05*( (1-0.97*0.985*exp(-TSFC*range/(V_cruise*E))*0.995) + ( 0.97*0.985*exp(-TSFC*range/(V_cruise*E))*0.995 ) * ( 1-1*exp(-TSFC*deltax/(V_div*E))*1*exp(-TSFC*deltat/E)) );
 %% OEW
