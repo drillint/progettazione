@@ -1,4 +1,4 @@
-function [OEW,W_wing] = weights(N_pass,range,M,AR,MTOW,taper_ratio,W2S,t2c,sweep_angle,T2W,N,df,Lf,b,W_fuel)
+function [OEW,W_wing,W_single_engine] = weights(N_pass,range,M,AR,MTOW,taper_ratio,W2S,t2c,sweep_angle,T2W,N,df,Lf,b,W_fuel)
 %% input
 S_tail_horizontal2S=0.32; % according to aerodynamics
 S_tail_vertical2S=0.27; % according to aerodynamics
@@ -40,6 +40,7 @@ W_nac=1/4*N*0.04*0.07*T^1.36 / 2.2;
 
 % engine
 W_eng=T2W*MTOW/5.5;
+W_single_engine=W_eng/N;
 
 W_propulsion=W_nac+W_eng;
 %% Systems
