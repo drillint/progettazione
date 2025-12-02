@@ -1,0 +1,54 @@
+function [m_bf,PREE,DOC,CF,CM]= FoMs(MTOW,OEW,W_payload,W_fuel,range,Wblockfuel2WTO,N_pass,V_cruise,altitude_cruise,n_fa,N,W_single_engine,T2W)
+%% input
+n_pil=2; % per short-medium range
+FED=12000; % [Wh/kg]
+ROC=2500; % rate of climb [ft/min]
+ROD=3500; % rate of descent [ft/min]
+ADP=100e6;
+BEP=12e6;
+% engine
+Ncomp=12;
+BPR=8;
+OPR=32;
+%% block fuel consumption
+m_bf=Wblockfuel2WTO*MTOW;
+
+%% Payload range efficiency
+E_bf=FED/3600*m_bf;
+PREE=W_payload*range/E_bf;
+
+%% Direct operating costs
+t_climb=altitude_cruise/(ROC/3.28)/60; % [h]
+t_descent=altitude_cruise/(ROD/3.28)/60; % [h]
+t_cruise=range/V_cruise/3600; % [h]
+FLTt=(t_climb+t_descent+t_cruise); % flight time
+block_time= FLTt+0.25; % short-medium range, [h]
+V_commercial=range/1000/block_time; % [km/h]
+% CF -> flight costs per ora di volo
+crewcost=(n_pil*315+n_fa*77)*1.64;
+fuelcost=0.25*W_fuel/block_time;
+tax=7*MTOW/1000/block_time+0.4*range/1000/block_time*sqrt(MTOW/1000/50)+93*W_payload/1000/block_time; % atterraggio+navigazione+manovre a terra
+CF=crewcost+fuelcost+tax;
+% CM -> maintainance costs per ora di volo
+Tmax=T2W*MTOW/N;
+% Airframe
+A_labour=(0.09*(OEW-W_single_engine*N)/1000+6.7-350/((OEW-W_single_engine*N)/1000+75))*((0.8+0.68*FLTt)/block_time)*55*1.64;
+A_material=(4.2+2.2*FLTt)*(ADP-N*BEP);
+% Engine
+E_labour=0.21*55*1.64*(1.27-0.2*BPR^0.2)*(0.032*Ncomp+0.57)*(1+Tmax/1000)^0.4;
+E_material=2.56*(1+Tmax/1000)^0.8*(1.27-0.2*BPR^0.2)*(0.4*(OPR/20)^1.3+0.4+0.032*Ncomp+0.57);
+CM = A_labour+A_material+N*(E_labour+E_material)*(FLTt+1.3)/block_time;
+% CO -> ownership costs per ora di volo
+CO=0; % ?
+% TC -> total costs per ora di volo
+TC = CF + CM + CO;
+% TOC
+DOC=TC/(V_commercial*N_pass);
+
+%% Total operating costs
+IOC=0; % ?
+TOC=DOC+IOC;
+
+%% CO2 emissions
+
+end
