@@ -1,4 +1,4 @@
-function [W_TO_star,Wfuel2WTO,W_payload,W_cargo] = Raymer_weight_evaluation(N_pass,range)
+function [W_TO_star,Wfuel2WTO,Wblockfuel2WTO,W_payload,W_cargo,n_fa] = Raymer_weight_evaluation(N_pass,range)
 %% input
 N_pilots=2; % per short-medium range
 N_container=5;
@@ -20,6 +20,7 @@ W_cargo=N_container*160*4.16; % peso bagagli in stiva, volume dei container per 
 W_payload=(79.4+13.6)*N_pass+W_cargo; % passeggeri + bagaglio a mano + bagagli in stiva
 %% fuel
 Wfuel2WTO=1.05*( (1-0.97*0.985*exp(-TSFC*range/(V_cruise*E))*0.995) + ( 0.97*0.985*exp(-TSFC*range/(V_cruise*E))*0.995 ) * ( 1-1*exp(-TSFC*deltax/(V_div*E))*1*exp(-TSFC*deltat/E)) );
+Wblockfuel2WTO=Wfuel2WTO-( 0.97*0.985*exp(-TSFC*range/(V_cruise*E))*0.995 ) * ( 1-1*exp(-TSFC*deltax/(V_div*E))*1*exp(-TSFC*deltat/E)); % senza diversione
 %% OEW
 W_TO=0; W_TO_star=70e3;
 while norm(W_TO_star-W_TO) > 100
