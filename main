@@ -1,13 +1,13 @@
 clc; close all; clear;
 %% Input:
 % design variables
-N_vec=[2]; % numero di motori
-W2S_vec=[650]; % [kg/m^2]
-M_cruise_vec=[0.82]; % Mach di crociera
-t2c_vec=[0.1]; % spessore dell'ala
-AR_vec=[12]; % aspect ratio
-taper_ratio_vec=[0.3]; % taper ratio
-sweep_angle_vec=deg2rad([25]); % sweep angle
+N_vec=[2,4]; % numero di motori
+W2S_vec=[550,650]; % [kg/m^2]
+M_cruise_vec=[0.76,0.79,0.82]; % Mach di crociera
+t2c_vec=[0.10,0.12]; % spessore dell'ala
+AR_vec=[7,10,12]; % aspect ratio
+taper_ratio_vec=[0.2,0.4]; % taper ratio
+sweep_angle_vec=deg2rad([15,25,35]); % sweep angle
 
 % requirments
 N_pass=148;
@@ -25,12 +25,22 @@ altitude_cruise=11000; % [m]
 %% Preparazione pre-loop
 numit=0;
 % stima iniziale e pesi alla Raymer
-[MTOW0,Wfuel2WTO,W_payload,W_cargo]= ...
+[MTOW0,Wfuel2WTO,Wblockfuel2WTO,W_payload,W_cargo,n_fa]= ...
     Raymer_weight_evaluation(N_pass,range);
 
 % fusoliera
 [df,Lf,N_container] = ...
     fuselage(N_pass);
+
+%% Preallocazione della matrice delle configurazioni
+% Numero di combinazioni
+num_rows = numel(N_vec)*numel(W2S_vec)*numel(M_cruise_vec)*numel(t2c_vec)*numel(AR_vec)*numel(taper_ratio_vec)*numel(sweep_angle_vec);
+
+% Numero di colonne
+num_cols = 26; 
+
+ConfigMatrix = zeros(num_rows, num_cols);
+row_counter = 1;
 
 %% Loop alla Raymer, per tutte le possibili configurazioni di design variables
 for N = N_vec
@@ -59,7 +69,7 @@ for N = N_vec
                                     Cd=Cd0+Cd_i+Cd_wave;
 
                                 % pesi
-                                [OEW,W_wing] = ...
+                                [OEW,W_wing,W_single_engine] = ...
                                     weights(N_pass,range,M_cruise,AR,MTOW,taper_ratio,W2S,t2c,sweep_angle,T2W,N,df,Lf,b,W_fuel);
                                 MTOW_star=OEW+W_payload+W_cargo+W_fuel;
 
@@ -80,6 +90,27 @@ for N = N_vec
 
                                 numit=numit+1;
                             end
+                            [m_bf,PREE,DOC,CF,CM]= ...
+                                FoMs(MTOW,OEW,W_payload,W_fuel,range,Wblockfuel2WTO,N_pass,V_cruise,altitude_cruise,n_fa,N,W_single_engine,T2W);
+
+                            %% Aggiungo la configurazione alla matrice
+                            % Creazione delle strutture
+                            DesignVars = struct('N', N, 't2c', t2c, 'AR', AR, 'taper_ratio', taper_ratio, ...
+                                'sweep_angle', rad2deg(sweep_angle), 'W2S', W2S, 'M_cruise', M_cruise);
+
+                            Geometry = struct('S', S, 'b', b, 'Swet', S_wet_wing);
+
+                            Performance = struct('E', E, 'M', M_cruise, 'V_cruise', V_cruise,'Wfuel', W_fuel, 'Cdo', Cd0_star, 'Cdi', Cd_i, ...
+                                'Cdwave', Cd_wave, 'Cdtot', Cd, 'CL_design', CL_design, 'T2W', T2W);
+
+                            Weights = struct('MTOW', MTOW, 'OEW', OEW, 'Wwing', W_wing);
+
+                            FOMs = struct('block_fuel', m_bf, 'PREE', PREE, 'DOC', DOC);
+
+                            % Salvo la configurazione
+                            ConfigMatrix(row_counter, :) = addConfiguration(DesignVars, Geometry, Performance, Weights,FOMs);
+                            row_counter = row_counter + 1;
+
                         end
                     end
                 end
@@ -87,3 +118,17 @@ for N = N_vec
         end
     end
 end
+%% Visualizzazione della matrice delle configurazioni
+disp(['Numero di configurazioni: ', num2str(num_rows)]);
+% Nomi colonne
+colNames = { ...
+    'N','t2c','AR','TaperRatio','SweepAngle','W2S','M_cruise', ...
+    'S','b','Swet', ...
+    'E','M', 'Vcruise','Wfuel','Cdo','Cdi','Cdwave','Cdtot','CL_design','T2W', ...
+    'MTOW','OEW','Wwing' ...
+    'block_fuel', 'PREE', 'DOC'
+    };
+% Tabella MATLAB
+ConfigTable = array2table(ConfigMatrix,'VariableNames',colNames);
+disp(ConfigTable);
+
