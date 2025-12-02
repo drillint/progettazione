@@ -1,0 +1,23 @@
+function row = addConfiguration(DesignVars, Geometry, Performance, Weights,FOMs)
+% ADDCONFIGURATIONTOMATRIX
+% Costruisce una riga della matrice delle configurazioni
+%
+% Inputs:
+%   row_idx     - indice della riga corrente
+%   DesignVars  - struct con le variabili di design (N, t2c, AR, taper, sweep, W2S, M_cruise)
+%   Geometry    - struct con i valori geometrici (S, b, Swet)
+%   Performance - struct con i valori di performance (E, M, Wfuel, Cd0, Cdi, Cdwave, Cdtot, CL_design, T2W)
+%   Weights     - struct con i pesi (MTOW, OEW, Wwing)
+%
+% Output:
+%   row - vettore riga della matrice
+
+    row = [ ...
+        DesignVars.N, DesignVars.t2c, DesignVars.AR, DesignVars.taper_ratio, DesignVars.sweep_angle, ...
+        DesignVars.W2S, DesignVars.M_cruise, ...
+        Geometry.S, Geometry.b, Geometry.Swet, ...
+        Performance.E, Performance.M, Performance.V_cruise Performance.Wfuel, Performance.Cdo, Performance.Cdi, Performance.Cdwave, Performance.Cdtot, Performance.CL_design, Performance.T2W, ...
+        Weights.MTOW, Weights.OEW, Weights.Wwing ...
+        FOMs.block_fuel ,FOMs.PREE, FOMs.DOC
+        ];
+end
